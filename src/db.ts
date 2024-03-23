@@ -19,28 +19,36 @@ export const getDB = async () => {
 
 export const getProjects = async () => {
   const db = await getDB();
-  const result = db.select<IProject[]>("SELECT * FROM projects");
+  const result = await db.select<IProject[]>("SELECT * FROM projects");
   return result;
 };
 
 export const addProject = async (name: string) => {
   const db = await getDB();
-  const result = db.execute("INSERT INTO projects (name) VALUES (?)", [name]);
+  const result = await db.execute("INSERT INTO projects (name) VALUES (?)", [
+    name,
+  ]);
   return result;
 };
 
 export const updateProject = async (id: number, name: string) => {
   const db = await getDB();
-  const result = db.execute("UPDATE projects SET name = ? WHERE id = ?", [
+  const result = await db.execute("UPDATE projects SET name = ? WHERE id = ?", [
     name,
     id,
   ]);
   return result;
 };
 
+export const deleteProject = async (id: number) => {
+  const db = await getDB();
+  const result = await db.execute("DELETE FROM projects WHERE id = ?", [id]);
+  return result;
+};
+
 export const getEntries = async (project_id: number) => {
   const db = await getDB();
-  const result = db.select<IEntry[]>(
+  const result = await db.select<IEntry[]>(
     "SELECT * FROM entries WHERE project_id = ?",
     [project_id],
   );
@@ -53,7 +61,7 @@ export const addEntry = async (
   content: string,
 ) => {
   const db = await getDB();
-  const result = db.execute(
+  const result = await db.execute(
     "INSERT INTO entries (project_id, date, content) VALUES (?, ?, ?)",
     [project_id, date.toISOString(), content],
   );
@@ -66,9 +74,18 @@ export const updateEntry = async (
   content: string,
 ) => {
   const db = await getDB();
-  const result = db.execute(
+  const result = await db.execute(
     "UPDATE entries SET content = ? WHERE project_id = ? AND id = ?",
     [content, project_id, id],
+  );
+  return result;
+};
+
+export const deleteEntry = async (project_id: number, id: number) => {
+  const db = await getDB();
+  const result = await db.execute(
+    "DELETE FROM entries WHERE project_id = ? AND id = ?",
+    [project_id, id],
   );
   return result;
 };

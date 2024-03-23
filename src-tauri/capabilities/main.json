@@ -10,6 +10,8 @@
     "sql:allow-select",
     "sql:allow-close",
     "path:allow-resolve-directory",
-    "path:default"
+    "path:default",
+    "event:allow-listen",
+    "event:default"
   ]
 }
