@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect } from "react";
 import "./App.css";
 import {
   getProjects,
@@ -19,6 +19,7 @@ import { UnlistenFn, listen } from "@tauri-apps/api/event";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { summarizeEntries } from "./generation";
 import { create } from "zustand";
+import MDEditor from "@uiw/react-md-editor";
 
 // Zustand store for entries
 interface IEntryState {
@@ -32,20 +33,27 @@ const useEntries = create<IEntryState>((set) => ({
 }));
 
 // Zustand store for projects
-const useProjects = create((set) => ({
+interface IProjectState {
+  projects: IProject[];
+  activeProject: IProject | undefined;
+  setProjects: (projects: IProject[]) => void;
+  setActiveProject: (activeProject: IProject | undefined) => void;
+}
+
+const useProjects = create<IProjectState>((set) => ({
   projects: [] as IProject[],
+  activeProject: undefined as IProject | undefined,
   setProjects: (projects: IProject[]) => set({ projects }),
+  setActiveProject: (activeProject: IProject | undefined) =>
+    set({ activeProject }),
 }));
 
+// Main UI components
 const Entry: React.FC<{ entry: IEntry; updateEntries: () => void }> = ({
   entry,
   updateEntries,
 }) => {
   const [content, setContent] = React.useState(entry.content);
-
-  useEffect(() => {
-    updateEntry(entry.project_id, entry.id, content);
-  }, [content]);
 
   return (
     <div className="w-full">
@@ -54,11 +62,11 @@ const Entry: React.FC<{ entry: IEntry; updateEntries: () => void }> = ({
           <span className="flex justify-between pb-1 text-xs font-light">
             <span className="flex gap-1">
               <span className="text-indigo-400">
-                Created: {dayjs(entry.date).toDate().toLocaleString()}
+                Created: {dayjs(entry.date_created).toDate().toLocaleString()}
               </span>
               <span>•</span>
               <span className="text-indigo-300">
-                Updated: {new Date().toLocaleString()}
+                Updated: {dayjs(entry.date_created).toDate().toLocaleString()}
               </span>
             </span>
             <span
@@ -72,12 +80,16 @@ const Entry: React.FC<{ entry: IEntry; updateEntries: () => void }> = ({
               <TrashIcon />
             </span>
           </span>
-          <textarea
-            placeholder="Enter your notes here..."
-            className="h-[20rem] w-full flex-grow resize-y border-2 border-slate-300 bg-slate-100 bg-transparent p-1 outline-none"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-          />
+          <div>
+            <MDEditor
+              value={content}
+              onChange={(v) => {
+                setContent(v ?? "")
+                updateEntry(entry.project_id, entry.id, v ?? "", dayjs());
+              }}
+              preview="edit"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -88,7 +100,7 @@ const Entries: React.FC<{ projectId: number }> = ({ projectId }) => {
   const { entries, setEntries } = useEntries((s) => s);
 
   const addEntryHandler = () => {
-    addEntry(projectId, dayjs(), "").then(() =>
+    addEntry(projectId, dayjs(), dayjs(), "").then(() =>
       getEntries(projectId).then(setEntries),
     );
   };
@@ -112,7 +124,7 @@ const Entries: React.FC<{ projectId: number }> = ({ projectId }) => {
     <>
       <div className="flex flex-col gap-1 overflow-y-auto pt-2">
         {entries
-          .sort((a, b) => (a.date > b.date ? -1 : 1))
+          .sort((a, b) => (a.date_created > b.date_created ? -1 : 1))
           .map((entry) => (
             <Entry
               key={entry.id}
@@ -137,8 +149,8 @@ const Entries: React.FC<{ projectId: number }> = ({ projectId }) => {
 const ProjectTitle: React.FC<{
   project: IProject;
   updateProjectList: () => void;
-  setActiveProject: (id: IProject | undefined) => void;
-}> = ({ project, updateProjectList, setActiveProject }) => {
+}> = ({ project, updateProjectList }) => {
+  const { setActiveProject } = useProjects((s) => s);
   const [name, setName] = React.useState(project.name);
 
   useEffect(() => {
@@ -176,13 +188,35 @@ const ProjectTitle: React.FC<{
 };
 
 function App() {
-  const [projects, setProjects] = React.useState<IProject[]>([]);
-  const [activeProject, setActiveProject] = React.useState<
-    IProject | undefined
-  >(undefined);
+  const { projects, setProjects, activeProject, setActiveProject } =
+    useProjects((s) => s);
 
   useEffect(() => {
     getProjects().then(setProjects);
+  }, []);
+
+  const handleGenerate = useCallback(() => {
+    summarizeEntries(useEntries.getState().entries).then(
+      (result: string | null) => {
+        const data = new URLSearchParams();
+        data.append(
+          "project",
+          useProjects.getState().activeProject?.name || "Untitled Project",
+        );
+        data.append("notes", result || "No notes were generated.");
+        console.log(`/notes?${data.toString()}`);
+
+        new WebviewWindow("generated-notes", {
+          title: "Generated Notes",
+          width: 600,
+          height: 720,
+          url: `/notes?${data.toString()}`,
+          resizable: true,
+          visible: true,
+          focus: true,
+        });
+      },
+    );
   }, []);
 
   useEffect(() => {
@@ -198,23 +232,7 @@ function App() {
           });
           break;
         case "generate":
-          summarizeEntries(useEntries.getState().entries).then(
-            (result: string | null) => {
-              const data = new URLSearchParams();
-              data.append("notes", result || "No notes were generated.");
-              console.log(`/notes?${data.toString()}`);
-
-              new WebviewWindow("generated-notes", {
-                title: "Generated Notes",
-                width: 800,
-                height: 600,
-                url: `/notes?${data.toString()}`,
-                resizable: true,
-                visible: true,
-                focus: true,
-              });
-            },
-          );
+          handleGenerate();
           break;
       }
 
@@ -243,13 +261,12 @@ function App() {
           ))}
         </ul>
       </div>
-      <div className="flex h-[100vh] flex-grow flex-col gap-0 bg-zinc-50 p-2">
+      <div className="flex h-[100vh] flex-grow flex-col gap-0 bg-zinc-100 p-2">
         {activeProject && (
           <>
             <ProjectTitle
               project={activeProject}
               updateProjectList={() => getProjects().then(setProjects)}
-              setActiveProject={setActiveProject}
             />
             <hr className="m-0 border-slate-300 p-0" />
           </>

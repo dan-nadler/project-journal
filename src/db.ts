@@ -10,7 +10,8 @@ export interface IEntry {
   id: number;
   project_id: number;
   content: string;
-  date: string;
+  date_created: string;
+  date_update: string | null;
 }
 
 export const getDB = async () => {
@@ -57,13 +58,14 @@ export const getEntries = async (project_id: number) => {
 
 export const addEntry = async (
   project_id: number,
-  date: Dayjs,
+  date_created: Dayjs,
+  date_updated: Dayjs,
   content: string,
 ) => {
   const db = await getDB();
   const result = await db.execute(
-    "INSERT INTO entries (project_id, date, content) VALUES (?, ?, ?)",
-    [project_id, date.toISOString(), content],
+    "INSERT INTO entries (project_id, date_created, date_updated, content) VALUES (?, ?, ?, ?)",
+    [project_id, date_created.toISOString(), date_updated.toISOString(), content],
   );
   return result;
 };
@@ -72,11 +74,12 @@ export const updateEntry = async (
   project_id: number,
   id: number,
   content: string,
+  date_updated: Dayjs,
 ) => {
   const db = await getDB();
   const result = await db.execute(
-    "UPDATE entries SET content = ? WHERE project_id = ? AND id = ?",
-    [content, project_id, id],
+    "UPDATE entries SET content = ?, date_updated = ? WHERE project_id = ? AND id = ?",
+    [content, date_updated.toISOString(), project_id, id],
   );
   return result;
 };

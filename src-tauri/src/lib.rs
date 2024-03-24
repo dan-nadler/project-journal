@@ -35,7 +35,43 @@ fn migrations() -> Vec<Migration> {
         kind: MigrationKind::Up,
     };
 
-    return vec![migration];
+    let m2 = Migration {
+        version: 2,
+        description: "add_date_updated",
+        sql: "alter table entries
+        add date_updated TEXT;",
+        kind: MigrationKind::Up,
+    };
+
+    let m3 = Migration {
+        version: 3,
+        description: "rename_date_created",
+        sql: "create table entries_dg_tmp
+        (
+            id           integer not null
+                constraint entries_pk
+                    primary key,
+            date_created TEXT    not null,
+            content      text,
+            project_id   integer not null
+                constraint entries_projects_id_fk
+                    references projects
+                    on delete cascade,
+            date_updated TEXT
+        );
+        
+        insert into entries_dg_tmp(id, date_created, content, project_id, date_updated)
+        select id, date, content, project_id, date_updated
+        from entries;
+        
+        drop table entries;
+        
+        alter table entries_dg_tmp
+            rename to entries;",
+        kind: MigrationKind::Up,
+    };
+
+    return vec![migration, m2, m3];
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
