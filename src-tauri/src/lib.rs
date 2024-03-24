@@ -51,6 +51,7 @@ pub fn run() {
         )
         .setup(|app| {
             app.on_menu_event(|app_handle: &tauri::AppHandle, event| {
+                println!("menu event: {:?}", event);
                 app_handle.emit("menu", event.id).expect("failed to emit");
             });
             Ok(())

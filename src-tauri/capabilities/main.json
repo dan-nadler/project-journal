@@ -12,6 +12,13 @@
     "path:allow-resolve-directory",
     "path:default",
     "event:allow-listen",
-    "event:default"
+    "event:default",
+    "webview:allow-create-webview",
+    "webview:default",
+    "webview:allow-create-webview-window",
+    "webview:allow-set-webview-focus",
+    "webview:allow-set-webview-position",
+    "webview:allow-set-webview-size",
+    "webview:allow-webview-close"
   ]
 }

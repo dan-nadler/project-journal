@@ -15,7 +15,27 @@ import {
 import { PencilSquareIcon } from "@heroicons/react/24/solid";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import dayjs from "dayjs";
-import { listen } from "@tauri-apps/api/event";
+import { UnlistenFn, listen } from "@tauri-apps/api/event";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { summarizeEntries } from "./generation";
+import { create } from "zustand";
+
+// Zustand store for entries
+interface IEntryState {
+  entries: IEntry[];
+  setEntries: (entries: IEntry[]) => void;
+}
+
+const useEntries = create<IEntryState>((set) => ({
+  entries: [] as IEntry[],
+  setEntries: (entries: IEntry[]) => set({ entries }),
+}));
+
+// Zustand store for projects
+const useProjects = create((set) => ({
+  projects: [] as IProject[],
+  setProjects: (projects: IProject[]) => set({ projects }),
+}));
 
 const Entry: React.FC<{ entry: IEntry; updateEntries: () => void }> = ({
   entry,
@@ -65,7 +85,7 @@ const Entry: React.FC<{ entry: IEntry; updateEntries: () => void }> = ({
 };
 
 const Entries: React.FC<{ projectId: number }> = ({ projectId }) => {
-  const [entries, setEntries] = React.useState<IEntry[]>([]);
+  const { entries, setEntries } = useEntries((s) => s);
 
   const addEntryHandler = () => {
     addEntry(projectId, dayjs(), "").then(() =>
@@ -166,7 +186,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    listen<string>("menu", ({ payload }) => {
+    console.log(window.location.href);
+    const u: Promise<UnlistenFn> = listen<string>("menu", ({ payload }) => {
       switch (payload) {
         case "new-project":
           addProject("New Project").then((r) => {
@@ -176,7 +197,28 @@ function App() {
             });
           });
           break;
+        case "generate":
+          summarizeEntries(useEntries.getState().entries).then(
+            (result: string | null) => {
+              const data = new URLSearchParams();
+              data.append("notes", result || "No notes were generated.");
+              console.log(`/notes?${data.toString()}`);
+
+              new WebviewWindow("generated-notes", {
+                title: "Generated Notes",
+                width: 800,
+                height: 600,
+                url: `/notes?${data.toString()}`,
+                resizable: true,
+                visible: true,
+                focus: true,
+              });
+            },
+          );
+          break;
       }
+
+      return u;
     });
   }, []);
 
