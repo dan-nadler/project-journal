@@ -71,7 +71,25 @@ fn migrations() -> Vec<Migration> {
         kind: MigrationKind::Up,
     };
 
-    return vec![migration, m2, m3];
+    let m4 = Migration {
+        version: 4,
+        description: "add_settings_table",
+        sql: "create table settings
+        (
+            key   text not null
+                constraint settings_pk
+                    primary key,
+            value text
+        );
+        
+        create index settings_key_index
+            on settings (key);
+        
+        ",
+        kind: MigrationKind::Up,
+    };
+
+    return vec![migration, m2, m3, m4];
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -79,6 +97,7 @@ pub fn run() {
     let m: Vec<Migration> = migrations();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(
             tauri_plugin_sql::Builder::default()

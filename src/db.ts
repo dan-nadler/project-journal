@@ -14,6 +14,11 @@ export interface IEntry {
   date_update: string | null;
 }
 
+export interface ISettings {
+  key: string;
+  value: string;
+}
+
 export const getDB = async () => {
   return Database.load("sqlite:database.db");
 };
@@ -65,7 +70,12 @@ export const addEntry = async (
   const db = await getDB();
   const result = await db.execute(
     "INSERT INTO entries (project_id, date_created, date_updated, content) VALUES (?, ?, ?, ?)",
-    [project_id, date_created.toISOString(), date_updated.toISOString(), content],
+    [
+      project_id,
+      date_created.toISOString(),
+      date_updated.toISOString(),
+      content,
+    ],
   );
   return result;
 };
@@ -89,6 +99,27 @@ export const deleteEntry = async (project_id: number, id: number) => {
   const result = await db.execute(
     "DELETE FROM entries WHERE project_id = ? AND id = ?",
     [project_id, id],
+  );
+  return result;
+};
+
+export const getSetting = async (key: string) => {
+  const db = await getDB();
+  const result = await db.select<ISettings[]>(
+    "SELECT * FROM settings WHERE key = ?",
+    [key],
+  );
+  if (result.length === 0) {
+    return null;
+  }
+  return result[0];
+};
+
+export const setSetting = async (key: string, value: string) => {
+  const db = await getDB();
+  const result = await db.execute(
+    "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+    [key, value],
   );
   return result;
 };

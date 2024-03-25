@@ -15,11 +15,12 @@ import {
 import { PencilSquareIcon } from "@heroicons/react/24/solid";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import dayjs from "dayjs";
-import { UnlistenFn, listen } from "@tauri-apps/api/event";
+import { listen } from "@tauri-apps/api/event";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { summarizeEntries } from "./generation";
 import { create } from "zustand";
 import MDEditor from "@uiw/react-md-editor";
+import { confirm } from "@tauri-apps/plugin-dialog";
 
 // Zustand store for entries
 interface IEntryState {
@@ -72,9 +73,16 @@ const Entry: React.FC<{ entry: IEntry; updateEntries: () => void }> = ({
             <span
               className="w-4 cursor-pointer text-red-700"
               onClick={() => {
-                deleteEntry(entry.project_id, entry.id).then(() =>
-                  updateEntries(),
-                );
+                confirm("Are you sure you want to delete this entry?", {
+                  title: "Delete Entry?",
+                  kind: "warning",
+                }).then((x) => {
+                  if (x) {
+                    deleteEntry(entry.project_id, entry.id).then(() =>
+                      updateEntries(),
+                    );
+                  }
+                });
               }}
             >
               <TrashIcon />
@@ -84,7 +92,7 @@ const Entry: React.FC<{ entry: IEntry; updateEntries: () => void }> = ({
             <MDEditor
               value={content}
               onChange={(v) => {
-                setContent(v ?? "")
+                setContent(v ?? "");
                 updateEntry(entry.project_id, entry.id, v ?? "", dayjs());
               }}
               preview="edit"
@@ -114,8 +122,10 @@ const Entries: React.FC<{ projectId: number }> = ({ projectId }) => {
   };
 
   React.useEffect(() => {
+    console.log(`bound listener ${projectId}`)
     document.addEventListener("keydown", keydownHandler);
     return () => {
+      console.log(`unbound listener ${projectId}`)
       document.removeEventListener("keydown", keydownHandler);
     };
   }, []);
@@ -177,8 +187,15 @@ const ProjectTitle: React.FC<{
       <span
         className="w-4 cursor-pointer text-red-700"
         onClick={() => {
-          deleteProject(project.id).then(() => updateProjectList());
-          setActiveProject(undefined);
+          confirm("Are you sure you want to delete this project?", {
+            title: "Delete Project?",
+            kind: "warning",
+          }).then((x) => {
+            if (x) {
+              deleteProject(project.id).then(() => updateProjectList());
+              setActiveProject(undefined);
+            }
+          });
         }}
       >
         <TrashIcon />
@@ -221,7 +238,7 @@ function App() {
 
   useEffect(() => {
     console.log(window.location.href);
-    const u: Promise<UnlistenFn> = listen<string>("menu", ({ payload }) => {
+    listen<string>("menu", ({ payload }) => {
       switch (payload) {
         case "new-project":
           addProject("New Project").then((r) => {
@@ -235,14 +252,12 @@ function App() {
           handleGenerate();
           break;
       }
-
-      return u;
     });
   }, []);
 
   return (
     <div className="flex h-[100vh] w-full flex-row justify-start align-middle font-sans text-stone-800">
-      <div className="flex h-[100vh] w-[10rem] flex-grow-0 flex-col gap-2 bg-zinc-800 py-2 text-stone-300">
+      <div className="flex h-[100vh] w-[15rem] flex-grow-0 flex-col gap-2 bg-zinc-800 py-2 text-stone-300">
         <div className="mx-2 flex flex-row justify-between">
           <span>Projects</span>
         </div>
@@ -261,7 +276,7 @@ function App() {
           ))}
         </ul>
       </div>
-      <div className="flex h-[100vh] flex-grow flex-col gap-0 bg-zinc-100 p-2">
+      <div className="flex h-[100vh] w-full flex-col gap-0 bg-zinc-100 p-2">
         {activeProject && (
           <>
             <ProjectTitle
