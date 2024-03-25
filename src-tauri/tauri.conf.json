@@ -1,6 +1,6 @@
 {
   "productName": "Project Journal",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "io.tortoise.project-journal",
   "build": {
     "beforeDevCommand": "npm run dev",

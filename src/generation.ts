@@ -3,20 +3,19 @@ import { IEntry } from "./db";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getSetting } from "./db";
 
-
-const key = await getSetting("openai-api-key");
-console.log("key", key);
-if (!key) {
-  new WebviewWindow("settings", {
-    title: "Settings",
-    width: 720,
-    height: 600,
-    url: `/settings`,
-    resizable: true,
-    visible: true,
-    focus: true,
-  });
-}
+getSetting("openai-api-key").then((key) => {
+  if (!key) {
+    new WebviewWindow("settings", {
+      title: "Settings",
+      width: 720,
+      height: 600,
+      url: `/settings`,
+      resizable: true,
+      visible: true,
+      focus: true,
+    });
+  }
+});
 
 const openai = async () => {
   const k = (await getSetting("openai-api-key"))?.value;
@@ -31,7 +30,6 @@ const openai = async () => {
 
 export const summarizeEntries = async (entries: IEntry[]) => {
   console.log("summarizing entries", entries);
-  // return "placeholder";
 
   const content: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
     entries.map((entry) => ({
