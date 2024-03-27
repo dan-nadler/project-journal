@@ -1,24 +1,16 @@
 import OpenAI from "openai";
 import { IEntry } from "./db";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getSetting } from "./db";
+import { DEFAULT_SYSTEM_PROMPTS, SETTINGS, SETTINGS_WEBVIEW } from "./globals";
 
-getSetting("openai-api-key").then((key) => {
+getSetting(SETTINGS.OAI_API_KEY).then((key) => {
   if (!key) {
-    new WebviewWindow("settings", {
-      title: "Settings",
-      width: 720,
-      height: 600,
-      url: `/settings`,
-      resizable: true,
-      visible: true,
-      focus: true,
-    });
+    SETTINGS_WEBVIEW();
   }
 });
 
 const openai = async () => {
-  const k = (await getSetting("openai-api-key"))?.value;
+  const k = (await getSetting(SETTINGS.OAI_API_KEY))?.value;
   if (!k) {
     throw new Error("OpenAI API Key not set");
   }
@@ -29,8 +21,10 @@ const openai = async () => {
 };
 
 export const summarizeEntries = async (entries: IEntry[]) => {
-  console.log("summarizing entries", entries);
-
+  const systemPrompt = await getSetting(
+    SETTINGS.PROJECT_SUMMARY_SYSTEM_PROMPT,
+    DEFAULT_SYSTEM_PROMPTS.PROJECT_SUMMARY_SYSTEM_PROMPT,
+  );
   const content: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
     entries.map((entry) => ({
       role: "user",
@@ -42,11 +36,7 @@ export const summarizeEntries = async (entries: IEntry[]) => {
     messages: [
       {
         role: "system",
-        content: `Summarize the following entries as bulletted notes for distribution 
-        as an email to interested parties. This is a professional email and should be 
-        concise and professional.\n\nUse markdown to format your response. Your response 
-        will converted to HTML and rendered, so use Markdown accordingly. For example, only 
-        use code blocks for code, make appropriate use of heads, and so on.`,
+        content: systemPrompt?.value ?? "",
       },
       ...content,
     ],

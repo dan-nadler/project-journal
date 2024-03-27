@@ -103,14 +103,14 @@ export const deleteEntry = async (project_id: number, id: number) => {
   return result;
 };
 
-export const getSetting = async (key: string) => {
+export const getSetting = async (key: string, defaultValue?: string) => {
   const db = await getDB();
   const result = await db.select<ISettings[]>(
     "SELECT * FROM settings WHERE key = ?",
     [key],
   );
-  if (result.length === 0) {
-    return null;
+  if (result.length === 0 || !result[0].value) {
+    return defaultValue ? { value: defaultValue } : null;
   }
   return result[0];
 };

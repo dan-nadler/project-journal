@@ -19,6 +19,7 @@
     "@tauri-apps/plugin-sql": "^2.0.0-beta.2",
     "@uiw/react-md-editor": "^4.0.4",
     "dayjs": "^1.11.10",
+    "gantt-task-react": "^0.3.9",
     "openai": "^4.29.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

@@ -16,11 +16,13 @@ import { PencilSquareIcon } from "@heroicons/react/24/solid";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import dayjs from "dayjs";
 import { listen } from "@tauri-apps/api/event";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { summarizeEntries } from "./generation";
 import { create } from "zustand";
 import MDEditor from "@uiw/react-md-editor";
 import { confirm } from "@tauri-apps/plugin-dialog";
+import { GENERATED_NOTES_WEBVIEW, SETTINGS_WEBVIEW } from "./globals";
+import { Gantt, ViewMode } from "gantt-task-react";
+import "gantt-task-react/dist/index.css";
 
 // Zustand store for entries
 interface IEntryState {
@@ -49,7 +51,104 @@ const useProjects = create<IProjectState>((set) => ({
     set({ activeProject }),
 }));
 
+// const EXAMPLE_TASKS = [
+//   {
+//     start: dayjs("2024-01-01").toDate(),
+//     end: dayjs("2024-01-30").toDate(),
+//     name: "Project 1",
+//     id: "P1",
+//     type: "project",
+//     progress: 15,
+//   },
+//   {
+//     start: dayjs("2024-01-01").toDate(),
+//     end: dayjs("2024-01-10").toDate(),
+//     name: "Task 1",
+//     id: "1",
+//     type: "task",
+//     progress: 50,
+//     project: "P1",
+//   },
+//   {
+//     start: dayjs("2024-01-10").toDate(),
+//     end: dayjs("2024-01-20").toDate(),
+//     name: "Task 2",
+//     id: "2",
+//     type: "task",
+//     progress: 0,
+//     project: "P1",
+//     dependencies: ["1"],
+//   },
+//   {
+//     start: dayjs("2024-01-30").toDate(),
+//     end: dayjs("2024-03-30").toDate(),
+//     name: "Project 2",
+//     id: "P2",
+//     type: "project",
+//     progress: 15,
+//     dependencies: ["P1"],
+//   },
+//   {
+//     start: dayjs("2024-01-30").toDate(),
+//     end: dayjs("2024-02-10").toDate(),
+//     name: "Task 1",
+//     id: "2-1",
+//     type: "task",
+//     progress: 50,
+//     project: "P2",
+//     dependencies: [],
+//   },
+//   {
+//     start: dayjs("2024-02-10").toDate(),
+//     end: dayjs("2024-02-20").toDate(),
+//     name: "Task 2",
+//     id: "2-2",
+//     type: "task",
+//     progress: 0,
+//     project: "P2",
+//     dependencies: ["2-1"],
+//   },
+// ];
+
 // Main UI components
+const GanttChart: React.FC = () => {
+  const { projects } = useProjects((s) => s);
+
+  return (
+    projects.length > 0 && (
+        <Gantt
+          viewMode={ViewMode.Week}
+          TaskListHeader={({ headerHeight }) => (
+            <div style={{ height: headerHeight }} className="border p-2">
+              <div>Name</div>
+            </div>
+          )}
+          TaskListTable={({ tasks, rowHeight }) => (
+            <div className="border border-t-0">
+              {tasks.map((task) => (
+                <div
+                  key={task.id}
+                  style={{ height: rowHeight }}
+                  className={`flex flex-col justify-center border p-2 pr-4 ${task.type == "project" ? "" : "pl-6 font-light"}`}
+                >
+                  <div>{task.name}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          tasks={projects.map((p) => ({
+            start: dayjs("2024-01-01").toDate(),
+            end: dayjs("2024-03-31").toDate(),
+            name: p.name,
+            id: p.id.toString(),
+            type: "project",
+            progress: 0,
+          }))}
+        />
+    )
+  );
+};
+
 const Entry: React.FC<{ entry: IEntry; updateEntries: () => void }> = ({
   entry,
   updateEntries,
@@ -122,13 +221,13 @@ const Entries: React.FC<{ projectId: number }> = ({ projectId }) => {
   };
 
   React.useEffect(() => {
-    console.log(`bound listener ${projectId}`)
+    console.log(`bound listener ${projectId}`);
     document.addEventListener("keydown", keydownHandler);
     return () => {
-      console.log(`unbound listener ${projectId}`)
+      console.log(`unbound listener ${projectId}`);
       document.removeEventListener("keydown", keydownHandler);
     };
-  }, []);
+  }, [projectId]);
 
   return (
     <>
@@ -212,26 +311,16 @@ function App() {
     getProjects().then(setProjects);
   }, []);
 
+  const handleSettings = useCallback(() => {
+    SETTINGS_WEBVIEW();
+  }, []);
+
   const handleGenerate = useCallback(() => {
     summarizeEntries(useEntries.getState().entries).then(
       (result: string | null) => {
-        const data = new URLSearchParams();
-        data.append(
-          "project",
-          useProjects.getState().activeProject?.name || "Untitled Project",
-        );
-        data.append("notes", result || "No notes were generated.");
-        console.log(`/notes?${data.toString()}`);
-
-        new WebviewWindow("generated-notes", {
-          title: "Generated Notes",
-          width: 600,
-          height: 720,
-          url: `/notes?${data.toString()}`,
-          resizable: true,
-          visible: true,
-          focus: true,
-        });
+        const project =
+          useProjects.getState().activeProject?.name || "Untitled Project";
+        GENERATED_NOTES_WEBVIEW(result || "No notes were generated.", project);
       },
     );
   }, []);
@@ -251,6 +340,9 @@ function App() {
         case "generate":
           handleGenerate();
           break;
+        case "settings":
+          handleSettings();
+          break;
       }
     });
   }, []);
@@ -263,6 +355,16 @@ function App() {
         </div>
         <hr />
         <ul className="flex cursor-pointer flex-col gap-2 text-sm">
+          <li
+            key={"gantt"}
+            onClick={() => {
+              setActiveProject(undefined);
+            }}
+            className={`${activeProject === undefined && "bg-zinc-600"} px-2 hover:bg-zinc-700`}
+          >
+            Gantt Chart
+          </li>
+          <hr />
           {projects.map((project) => (
             <li
               key={project.id}
@@ -276,7 +378,7 @@ function App() {
           ))}
         </ul>
       </div>
-      <div className="flex h-[100vh] w-full flex-col gap-0 bg-zinc-100 p-2">
+      <div className="flex h-[100vh] w-full flex-col gap-0 bg-zinc-100 p-2 overflow-auto">
         {activeProject && (
           <>
             <ProjectTitle
@@ -287,7 +389,13 @@ function App() {
           </>
         )}
         <div className="flex flex-grow flex-col overflow-y-hidden">
-          {activeProject && <Entries projectId={activeProject.id} />}
+          {activeProject ? (
+            <Entries projectId={activeProject.id} />
+          ) : (
+            <div className={`h-[100vh]`}>
+              <GanttChart />
+            </div>
+          )}
         </div>
       </div>
     </div>

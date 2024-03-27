@@ -1,3 +1,16 @@
+# Project Journal
+## Development Tasks / TODO
+### v0.2.0
+- [ ] Allow the user to modify the System Prompt
+- [ ] Allow the user to select the OpenAI language model
+- [ ] Allow the user to provide examples of output style
+- [ ] Generate all project summaries and compile into a top-level summary
+- [ ] Constrain summary to a specific date range
+### Future
+- [ ] Ingest and sync with notes on the file system (eg. Obsidian vault)
+- [ ] Show summary streaming results from LLM
+- [ ] Export notes as text files
+
 # Tauri + React + Typescript
 
 This template should help get you started developing with Tauri, React and Typescript in Vite.

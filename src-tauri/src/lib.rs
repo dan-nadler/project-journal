@@ -89,7 +89,26 @@ fn migrations() -> Vec<Migration> {
         kind: MigrationKind::Up,
     };
 
-    return vec![migration, m2, m3, m4];
+    let m5 = Migration {
+        version: 5,
+        description: "add_status_table",
+        sql: "create table status
+        (
+            id         integer not null
+                constraint status_pk
+                    primary key autoincrement,
+            project    integer
+                constraint status_projects_id_fk
+                    references projects
+                    on delete cascade,
+            progress   integer,
+            start_date text    not null,
+            end_date   text    not null
+        );",
+        kind: MigrationKind::Up,
+    };
+
+    return vec![migration, m2, m3, m4, m5];
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -115,12 +134,24 @@ pub fn run() {
             Menu::with_items(
                 handle,
                 &[
+                    &PredefinedMenuItem::separator(handle)?,
                     #[cfg(target_os = "macos")]
                     &Submenu::with_items(
                         handle,
                         "Project Journal",
                         true,
-                        &[&PredefinedMenuItem::quit(handle, None)?],
+                        &[
+                            #[cfg(target_os = "macos")]
+                            &MenuItem::with_id(
+                                handle,
+                                "settings",
+                                "&Settings",
+                                true,
+                                Some("CmdOrCtrl+,"),
+                            )?,
+                            &PredefinedMenuItem::separator(handle)?,
+                            &PredefinedMenuItem::quit(handle, None)?,
+                        ],
                     )?,
                     &Submenu::with_items(
                         handle,
