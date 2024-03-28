@@ -108,7 +108,38 @@ fn migrations() -> Vec<Migration> {
         kind: MigrationKind::Up,
     };
 
-    return vec![migration, m2, m3, m4, m5];
+    let m6 = Migration {
+        version: 6,
+        description: "update_status_table",
+        sql: "create table status_dg_tmp
+        (
+            id           integer not null
+                constraint status_pk
+                    primary key autoincrement,
+            project_id   integer
+                constraint status_projects_id_fk
+                    references projects
+                    on delete cascade,
+            progress     integer,
+            start_date   text    not null,
+            end_date     text    not null,
+            date_created text    not null
+        );
+        
+        insert into status_dg_tmp(id, project_id, progress, start_date, end_date)
+        select id, project, progress, start_date, end_date
+        from status;
+        
+        drop table status;
+        
+        alter table status_dg_tmp
+            rename to status;
+        
+        ",
+        kind: MigrationKind::Up,
+    };
+
+    return vec![migration, m2, m3, m4, m5, m6];
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

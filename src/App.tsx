@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import "./App.css";
 import {
   getProjects,
@@ -11,10 +11,20 @@ import {
   deleteProject,
   addEntry,
   updateProject,
+  addStatus,
+  getStatus,
+  IStatus,
+  updateStatus,
+  deleteStatus,
 } from "./db";
 import { PencilSquareIcon } from "@heroicons/react/24/solid";
-import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
+import {
+  Bars3BottomRightIcon,
+  TrashIcon,
+  QueueListIcon,
+} from "@heroicons/react/24/outline";
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import { listen } from "@tauri-apps/api/event";
 import { summarizeEntries } from "./generation";
 import { create } from "zustand";
@@ -23,6 +33,8 @@ import { confirm } from "@tauri-apps/plugin-dialog";
 import { GENERATED_NOTES_WEBVIEW, SETTINGS_WEBVIEW } from "./globals";
 import { Gantt, ViewMode } from "gantt-task-react";
 import "gantt-task-react/dist/index.css";
+
+dayjs.extend(utc);
 
 // Zustand store for entries
 interface IEntryState {
@@ -33,6 +45,17 @@ interface IEntryState {
 const useEntries = create<IEntryState>((set) => ({
   entries: [] as IEntry[],
   setEntries: (entries: IEntry[]) => set({ entries }),
+}));
+
+// Zustand store for status
+interface IStatusState {
+  status: IStatus[];
+  setStatus: (status: IStatus[]) => void;
+}
+
+const useStatus = create<IStatusState>((set) => ({
+  status: [] as IStatus[],
+  setStatus: (status: IStatus[]) => set({ status }),
 }));
 
 // Zustand store for projects
@@ -113,38 +136,52 @@ const useProjects = create<IProjectState>((set) => ({
 // Main UI components
 const GanttChart: React.FC = () => {
   const { projects } = useProjects((s) => s);
+  const { status } = useStatus((s) => s);
+
+  const getProjectStatus = (id: number): IStatus | null => {
+    if (status === undefined) {
+      return null;
+    } else {
+      return (
+        status
+          .sort((a, b) => (a.date_created > b.date_created ? -1 : 1))
+          .find((s) => s.project_id === id) ?? null
+      );
+    }
+  };
 
   return (
     projects.length > 0 && (
-        <Gantt
-          viewMode={ViewMode.Week}
-          TaskListHeader={({ headerHeight }) => (
-            <div style={{ height: headerHeight }} className="border p-2">
-              <div>Name</div>
-            </div>
-          )}
-          TaskListTable={({ tasks, rowHeight }) => (
-            <div className="border border-t-0">
-              {tasks.map((task) => (
-                <div
-                  key={task.id}
-                  style={{ height: rowHeight }}
-                  className={`flex flex-col justify-center border p-2 pr-4 ${task.type == "project" ? "" : "pl-6 font-light"}`}
-                >
-                  <div>{task.name}</div>
-                </div>
-              ))}
-            </div>
-          )}
-          tasks={projects.map((p) => ({
-            start: dayjs("2024-01-01").toDate(),
-            end: dayjs("2024-03-31").toDate(),
-            name: p.name,
-            id: p.id.toString(),
-            type: "project",
-            progress: 0,
-          }))}
-        />
+      <Gantt
+        viewMode={ViewMode.Week}
+        todayColor="rgba(99, 102, 241, 0.1)"
+        TaskListHeader={({ headerHeight }) => (
+          <div style={{ height: headerHeight }} className="border p-2 bg-indi">
+            <div>Name</div>
+          </div>
+        )}
+        TaskListTable={({ tasks, rowHeight }) => (
+          <div className="border border-t-0">
+            {tasks.map((task) => (
+              <div
+                key={task.id}
+                style={{ height: rowHeight }}
+                className={`flex flex-col justify-center border p-2 pr-4 ${task.type == "project" ? "" : "pl-6 font-light"}`}
+              >
+                <div>{task.name}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        tasks={projects.map((p) => ({
+          start: dayjs(getProjectStatus(p.id)?.start_date).toDate(),
+          end: dayjs(getProjectStatus(p.id)?.end_date).toDate(),
+          name: p.name,
+          id: p.id.toString(),
+          type: "project",
+          progress: getProjectStatus(p.id)?.progress ?? 0,
+        }))}
+      />
     )
   );
 };
@@ -177,9 +214,7 @@ const Entry: React.FC<{ entry: IEntry; updateEntries: () => void }> = ({
                   kind: "warning",
                 }).then((x) => {
                   if (x) {
-                    deleteEntry(entry.project_id, entry.id).then(() =>
-                      updateEntries(),
-                    );
+                    deleteEntry(entry.project_id, entry.id).then(updateEntries);
                   }
                 });
               }}
@@ -203,8 +238,105 @@ const Entry: React.FC<{ entry: IEntry; updateEntries: () => void }> = ({
   );
 };
 
+const Status: React.FC<{ status: IStatus; updateStatusState: () => void }> = ({
+  status,
+  updateStatusState,
+}) => {
+  const [progress, setProgress] = useState(status.progress);
+  const [startDate, setStartDate] = useState(dayjs(status.start_date));
+  const [endDate, setEndDate] = useState(dayjs(status.end_date));
+
+  return (
+    <div className="">
+      <span className="text-emerald-500 text-xs font-light">
+        Created: {dayjs(status.date_created).toDate().toLocaleString()}
+      </span>
+      <div className="flex flex-row gap-4 border border-emerald-400 bg-stone-100 p-2 text-sm">
+        <div className="flex flex-row justify-start gap-2 ">
+          <label className="text-right">Progress</label>
+          <input
+            className="w-[5rem] rounded-md px-2"
+            value={progress}
+            onChange={(e) => {
+              setProgress(e.target.valueAsNumber);
+              updateStatus(
+                status.project_id,
+                status.id,
+                e.target.valueAsNumber,
+                dayjs(status.start_date),
+                dayjs(status.end_date),
+              ).then(updateStatusState);
+            }}
+            type="number"
+          />
+        </div>
+        <div className="flex flex-row gap-2">
+          <label className="text-right">Start Date</label>
+          <input
+            className="w-[7rem] rounded-md px-2"
+            value={startDate.utc().format("YYYY-MM-DD")}
+            onChange={(e) => {
+              setStartDate(
+                // This is an incredibly stupid way to do this, I really need to do this properly...
+                dayjs(dayjs(e.target.valueAsDate).utc().format("YYYY-MM-DD")),
+              );
+              updateStatus(
+                status.project_id,
+                status.id,
+                status.progress,
+                dayjs(e.target.valueAsDate?.toISOString()),
+                dayjs(status.end_date),
+              ).then(updateStatusState);
+            }}
+            type="date"
+          />
+        </div>
+        <div className="flex flex-row gap-2">
+          <label className="text-right">End Date</label>
+          <input
+            className="w-[7rem] rounded-md px-2"
+            value={endDate.format("YYYY-MM-DD")}
+            onChange={(e) => {
+              setEndDate(
+                // See the comment about this dumb shit above.
+                dayjs(dayjs(e.target.valueAsDate).utc().format("YYYY-MM-DD")),
+              );
+              updateStatus(
+                status.project_id,
+                status.id,
+                status.progress,
+                dayjs(status.start_date),
+                dayjs(e.target.valueAsDate?.toISOString()),
+              ).then(updateStatusState);
+            }}
+            type="date"
+          />
+        </div>
+        <div
+          className="w-4 cursor-pointer text-red-700"
+          onClick={() => {
+            confirm("Are you sure you want to delete this status update?", {
+              title: "Delete Status Update?",
+              kind: "warning",
+            }).then((x) => {
+              if (x) {
+                deleteStatus(status.project_id, status.id).then(
+                  updateStatusState,
+                );
+              }
+            });
+          }}
+        >
+          <TrashIcon />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Entries: React.FC<{ projectId: number }> = ({ projectId }) => {
   const { entries, setEntries } = useEntries((s) => s);
+  const { status, setStatus } = useStatus((s) => s);
 
   const addEntryHandler = () => {
     addEntry(projectId, dayjs(), dayjs(), "").then(() =>
@@ -212,8 +344,23 @@ const Entries: React.FC<{ projectId: number }> = ({ projectId }) => {
     );
   };
 
+  const addStatusHandler = () => {
+    const latestProgres =
+      status
+        .sort((a, b) => (a.date_created > b.date_created ? -1 : 1))
+        .find((s) => s.project_id === projectId) ?? null;
+
+    addStatus(
+      projectId,
+      latestProgres?.progress ?? 0,
+      dayjs(latestProgres?.start_date),
+      dayjs(latestProgres?.end_date),
+    ).then(() => getStatus().then(setStatus));
+  };
+
   useEffect(() => {
     getEntries(projectId).then(setEntries);
+    getStatus().then(setStatus);
   }, [projectId]);
 
   const keydownHandler = (e: KeyboardEvent) => {
@@ -232,25 +379,52 @@ const Entries: React.FC<{ projectId: number }> = ({ projectId }) => {
   return (
     <>
       <div className="flex flex-col gap-1 overflow-y-auto pt-2">
-        {entries
+        {[...entries, ...status]
           .sort((a, b) => (a.date_created > b.date_created ? -1 : 1))
-          .map((entry) => (
-            <Entry
-              key={entry.id}
-              entry={entry}
-              updateEntries={() => {
-                getEntries(projectId).then(setEntries);
-              }}
-            />
-          ))}
+          .map((i) => {
+            if (i.hasOwnProperty("progress")) {
+              if (i.project_id == projectId) {
+                const s = i as IStatus;
+                return (
+                  <Status
+                    key={`s${s.id}`}
+                    status={s}
+                    updateStatusState={() => {
+                      getStatus().then(setStatus);
+                    }}
+                  />
+                );
+              }
+            } else {
+              const e = i as IEntry;
+              return (
+                <Entry
+                  key={`e${e.id}`}
+                  entry={e}
+                  updateEntries={() => {
+                    getEntries(projectId).then(setEntries);
+                  }}
+                />
+              );
+            }
+          })}
       </div>
-      <button
-        onClick={addEntryHandler}
-        className="absolute bottom-0 right-0 z-10 m-4 h-8 w-8 rounded-full border-2 border-indigo-300 bg-indigo-100 opacity-70"
-        title={`New Entry (${navigator.userAgent.indexOf("Mac") > -1 ? "⌘" : "Ctl"} + E)`}
-      >
-        <PlusIcon />
-      </button>
+      <div className="absolute bottom-0 right-0 z-10 m-4 flex h-8 flex-row gap-1">
+        <button
+          onClick={addEntryHandler}
+          className="w-8 rounded-full border-2 border-indigo-300 bg-indigo-100 p-1 opacity-70"
+          title={`New Entry (${navigator.userAgent.indexOf("Mac") > -1 ? "⌘" : "Ctl"} + E)`}
+        >
+          <Bars3BottomRightIcon />
+        </button>
+        <button
+          onClick={addStatusHandler}
+          className="w-8 rounded-full border-2 border-emerald-400 bg-emerald-100 p-1 opacity-70"
+          title={`Progress Update (${navigator.userAgent.indexOf("Mac") > -1 ? "⌘" : "Ctl"} + P)`}
+        >
+          <QueueListIcon />
+        </button>
+      </div>
     </>
   );
 };
@@ -306,9 +480,11 @@ const ProjectTitle: React.FC<{
 function App() {
   const { projects, setProjects, activeProject, setActiveProject } =
     useProjects((s) => s);
+  const { setStatus } = useStatus((s) => s);
 
   useEffect(() => {
     getProjects().then(setProjects);
+    getStatus().then(setStatus);
   }, []);
 
   const handleSettings = useCallback(() => {
@@ -378,14 +554,14 @@ function App() {
           ))}
         </ul>
       </div>
-      <div className="flex h-[100vh] w-full flex-col gap-0 bg-zinc-100 p-2 overflow-auto">
+      <div className="flex h-[100vh] w-full flex-col gap-0 overflow-auto bg-zinc-100 p-2">
         {activeProject && (
           <>
             <ProjectTitle
               project={activeProject}
               updateProjectList={() => getProjects().then(setProjects)}
             />
-            <hr className="m-0 border-slate-300 p-0" />
+            <hr className="m-0 border-zinc-300 p-0" />
           </>
         )}
         <div className="flex flex-grow flex-col overflow-y-hidden">

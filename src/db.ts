@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import { Dayjs } from "dayjs";
+import dayjs, { Dayjs } from "dayjs";
 
 export interface IProject {
   id: number;
@@ -17,6 +17,15 @@ export interface IEntry {
 export interface ISettings {
   key: string;
   value: string;
+}
+
+export interface IStatus {
+  id: number;
+  project_id: number;
+  progress: number;
+  start_date: string;
+  end_date: string;
+  date_created: string;
 }
 
 export const getDB = async () => {
@@ -123,3 +132,61 @@ export const setSetting = async (key: string, value: string) => {
   );
   return result;
 };
+
+export const addStatus = async (
+  project_id: number,
+  progress: number,
+  start_date: Dayjs,
+  end_date: Dayjs,
+) => {
+  const db = await getDB();
+  const result = await db.execute(
+    "INSERT INTO status (project_id, progress, start_date, end_date, date_created) VALUES (?, ?, ?, ?, ?)",
+    [
+      project_id,
+      progress,
+      start_date.utc().format("YYYY-MM-DD"),
+      end_date.utc().format("YYYY-MM-DD"),
+      dayjs().toISOString(),
+    ],
+  );
+  return result;
+};
+
+export const updateStatus = async (
+  project_id: number,
+  id: number,
+  progress: number,
+  start_date: Dayjs,
+  end_date: Dayjs,
+) => {
+  const db = await getDB();
+  const result = await db.execute(
+    "UPDATE status SET progress = ?, start_date = ?, end_date = ? WHERE project_id = ? AND id = ?",
+    [progress, start_date.utc().format("YYYY-MM-DD"), end_date.utc().format("YYYY-MM-DD"), project_id, id],
+  );
+  return result;
+}
+
+export const getStatus = async (project_id?: number) => {
+  const db = await getDB();
+  if (project_id) {
+    const result = await db.select<IStatus[]>(
+      "SELECT * FROM status WHERE project_id = ?",
+      [project_id],
+    );
+    return result;
+  } else {
+    const result = await db.select<IStatus[]>("SELECT * FROM status");
+    return result;
+  }
+};
+
+export const deleteStatus = async (project_id: number, id: number) => {
+  const db = await getDB();
+  const result = await db.execute(
+    "DELETE FROM status WHERE project_id = ? AND id = ?",
+    [project_id, id],
+  );
+  return result;
+}
