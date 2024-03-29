@@ -1,0 +1,11 @@
+.markdown-list > li {
+  list-style-type: disc; /* default bullet */
+}
+
+.markdown-list > li > ul > li {
+  list-style-type: circle; /* first level of nesting */
+}
+
+.markdown-list > li > ul > li > ul > li {
+  list-style-type: square; /* second level of nesting */
+}

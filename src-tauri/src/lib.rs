@@ -198,10 +198,25 @@ pub fn run() {
                             )?,
                             &MenuItem::with_id(
                                 handle,
-                                "generate",
-                                "&Generate...",
+                                "generate-project-notes",
+                                "&Generate Project Notes",
                                 true,
                                 Some("CmdOrCtrl+G"),
+                            )?,
+                            &MenuItem::with_id(
+                                handle,
+                                "generate-update",
+                                "Generate Periodic &Update",
+                                true,
+                                Some("CmdOrCtrl+U"),
+                            )?,
+                            #[cfg(target_os = "windows")]
+                            &MenuItem::with_id(
+                                handle,
+                                "settings",
+                                "&Settings",
+                                true,
+                                Some("CmdOrCtrl+,"),
                             )?,
                             &PredefinedMenuItem::separator(handle)?,
                             &PredefinedMenuItem::close_window(handle, None)?,

@@ -6,6 +6,8 @@ export const Settings: React.FC = () => {
   const [apiKey, setApiKey] = React.useState<string | null>(null);
   const [projectSummarySystemPrompt, setProjectSummarySystemPrompt] =
     React.useState<string | null>(null);
+  const [periodicUpdateSystemPrompt, setPeriodicUpdateSystemPrompt] =
+    React.useState<string | null>(null);
 
   useEffect(() => {
     getSetting(SETTINGS.OAI_API_KEY).then((r) => {
@@ -18,6 +20,14 @@ export const Settings: React.FC = () => {
     ).then((r) => {
       console.log(r);
       r && setProjectSummarySystemPrompt(r.value);
+    });
+
+    getSetting(
+      SETTINGS.PERIODIC_UPDATE_SYSTEM_PROMPT,
+      DEFAULT_SYSTEM_PROMPTS.PERIODIC_UPDATE_SYSTEM_PROMPT,
+    ).then((r) => {
+      console.log(r);
+      r && setPeriodicUpdateSystemPrompt(r.value);
     });
   }, []);
 
@@ -49,7 +59,23 @@ export const Settings: React.FC = () => {
               e.target.value ?? "",
             );
           }}
-          className="border border-gray-300 p-2 h-[15rem]"
+          className="h-[15rem] border border-gray-300 p-2"
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm text-stone-500">
+          Periodic Update System Prompt
+        </label>
+        <textarea
+          value={periodicUpdateSystemPrompt ?? ""}
+          onChange={(e) => {
+            setPeriodicUpdateSystemPrompt(e.target.value);
+            setSetting(
+              SETTINGS.PERIODIC_UPDATE_SYSTEM_PROMPT,
+              e.target.value ?? "",
+            );
+          }}
+          className="h-[15rem] border border-gray-300 p-2"
         />
       </div>
     </div>

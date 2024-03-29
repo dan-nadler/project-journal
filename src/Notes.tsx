@@ -31,10 +31,10 @@ export const Notes: React.FC = () => {
             return <p className="text-base" {...props} />;
           },
           ol: ({ node, ...props }) => {
-            return <ol className="list-inside list-decimal" {...props} />;
+            return <ol className="list-inside list-decimal pl-4" {...props} />;
           },
           ul: ({ node, ...props }) => {
-            return <ul className="list-inside list-disc" {...props} />;
+            return <ul className="markdown-list list-inside list-disc pl-4" {...props} />;
           },
           hr: ({ node, ...props }) => {
             return <hr className="my-2" {...props} />;

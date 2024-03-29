@@ -4,10 +4,13 @@
 - [x] Allow the user to modify the System Prompt
 - [ ] Allow the user to select the OpenAI language model
 - [ ] Allow the user to provide examples of output style
-- [ ] Generate all project summaries and compile into a top-level summary
-- [ ] Constrain summary to a specific date range
+- [x] Generate all project summaries and compile into a top-level summary
+- [x] Constrain summary to a specific date range
 - [x] Integrate a Gantt chart overview
+- [ ] Add tasks to the Gantt chart
+- [ ] View a Gantt chart for a single project
 ### Future
+- [ ] Support task and project dependencies in the Gantt chart
 - [ ] Ingest and sync with notes on the file system (eg. Obsidian vault)
 - [ ] Show summary streaming results from LLM
 - [ ] Export notes as text files

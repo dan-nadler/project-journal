@@ -16,6 +16,7 @@ import {
   IStatus,
   updateStatus,
   deleteStatus,
+  getEntriesOverRange,
 } from "./db";
 import { PencilSquareIcon } from "@heroicons/react/24/solid";
 import {
@@ -26,7 +27,11 @@ import {
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { listen } from "@tauri-apps/api/event";
-import { summarizeEntries } from "./generation";
+import {
+  IProjectNotes,
+  generatePeriodicUpdate,
+  summarizeEntries,
+} from "./generation";
 import { create } from "zustand";
 import MDEditor from "@uiw/react-md-editor";
 import { confirm } from "@tauri-apps/plugin-dialog";
@@ -156,7 +161,7 @@ const GanttChart: React.FC = () => {
         viewMode={ViewMode.Week}
         todayColor="rgba(99, 102, 241, 0.1)"
         TaskListHeader={({ headerHeight }) => (
-          <div style={{ height: headerHeight }} className="border p-2 bg-indi">
+          <div style={{ height: headerHeight }} className="bg-indi border p-2">
             <div>Name</div>
           </div>
         )}
@@ -191,6 +196,7 @@ const Entry: React.FC<{ entry: IEntry; updateEntries: () => void }> = ({
   updateEntries,
 }) => {
   const [content, setContent] = React.useState(entry.content);
+  const [lastUpdate, setLastUpdate] = React.useState(dayjs(entry.date_updated));
 
   return (
     <div className="w-full">
@@ -199,11 +205,14 @@ const Entry: React.FC<{ entry: IEntry; updateEntries: () => void }> = ({
           <span className="flex justify-between pb-1 text-xs font-light">
             <span className="flex gap-1">
               <span className="text-indigo-400">
-                Created: {dayjs(entry.date_created).toDate().toLocaleString()}
+                Created:{" "}
+                {dayjs(entry.date_created).format("YYYY-MM-DD h:mm a")}
               </span>
               <span>•</span>
               <span className="text-indigo-300">
-                Updated: {dayjs(entry.date_created).toDate().toLocaleString()}
+                {lastUpdate
+                  ? `Updated: ${lastUpdate.format("YYYY-MM-DD h:mm a")}`
+                  : ""}
               </span>
             </span>
             <span
@@ -227,7 +236,9 @@ const Entry: React.FC<{ entry: IEntry; updateEntries: () => void }> = ({
               value={content}
               onChange={(v) => {
                 setContent(v ?? "");
-                updateEntry(entry.project_id, entry.id, v ?? "", dayjs());
+                const d = dayjs();
+                updateEntry(entry.project_id, entry.id, v ?? "", d);
+                setLastUpdate(d);
               }}
               preview="edit"
             />
@@ -248,10 +259,29 @@ const Status: React.FC<{ status: IStatus; updateStatusState: () => void }> = ({
 
   return (
     <div className="">
-      <span className="text-emerald-500 text-xs font-light">
-        Created: {dayjs(status.date_created).toDate().toLocaleString()}
-      </span>
-      <div className="flex flex-row gap-4 border border-emerald-400 bg-stone-100 p-2 text-sm">
+      <div className="flex flex-row justify-between gap-4 pb-1">
+        <span className="text-xs font-light text-emerald-500">
+          Created: {dayjs(status.date_created).format("YYYY-MM-DD h:mm a")}
+        </span>
+        <div
+          className="w-4 cursor-pointer text-red-700"
+          onClick={() => {
+            confirm("Are you sure you want to delete this status update?", {
+              title: "Delete Status Update?",
+              kind: "warning",
+            }).then((x) => {
+              if (x) {
+                deleteStatus(status.project_id, status.id).then(
+                  updateStatusState,
+                );
+              }
+            });
+          }}
+        >
+          <TrashIcon />
+        </div>
+      </div>
+      <div className="flex flex-row items-center justify-start gap-4 rounded-sm border border-emerald-400 bg-stone-100 p-2 text-sm">
         <div className="flex flex-row justify-start gap-2 ">
           <label className="text-right">Progress</label>
           <input
@@ -312,23 +342,6 @@ const Status: React.FC<{ status: IStatus; updateStatusState: () => void }> = ({
             type="date"
           />
         </div>
-        <div
-          className="w-4 cursor-pointer text-red-700"
-          onClick={() => {
-            confirm("Are you sure you want to delete this status update?", {
-              title: "Delete Status Update?",
-              kind: "warning",
-            }).then((x) => {
-              if (x) {
-                deleteStatus(status.project_id, status.id).then(
-                  updateStatusState,
-                );
-              }
-            });
-          }}
-        >
-          <TrashIcon />
-        </div>
       </div>
     </div>
   );
@@ -365,6 +378,7 @@ const Entries: React.FC<{ projectId: number }> = ({ projectId }) => {
 
   const keydownHandler = (e: KeyboardEvent) => {
     if (e.key === "e" && (e.metaKey || e.ctrlKey)) addEntryHandler();
+    if (e.key === "p" && (e.metaKey || e.ctrlKey)) addStatusHandler();
   };
 
   React.useEffect(() => {
@@ -501,6 +515,33 @@ function App() {
     );
   }, []);
 
+  const handleGenerateUpdate = useCallback(async () => {
+    const startDate = dayjs().subtract(7, "days");
+    const endDate = dayjs();
+    const projects = useProjects.getState().projects;
+    console.log("generating notes for", startDate, endDate);
+
+    const projectNotes: IProjectNotes[] = await Promise.all(
+      projects.map(async (p) => {
+        const entries = await getEntriesOverRange(p.id, startDate, endDate);
+        const projectSummary = await summarizeEntries(entries);
+        return { project: p.name, notes: projectSummary || "No updates." };
+      }),
+    );
+
+    const result = await generatePeriodicUpdate(
+      `${startDate.format("YYYY-MM-DD")} - ${endDate.format("YYYY-MM-DD")}`,
+      projectNotes,
+    );
+
+    console.log(result);
+
+    GENERATED_NOTES_WEBVIEW(
+      result || "No notes were generated.",
+      `Update for ${startDate.format("YYYY-MM-DD")} - ${endDate.format("YYYY-MM-DD")}`,
+    );
+  }, []);
+
   useEffect(() => {
     console.log(window.location.href);
     listen<string>("menu", ({ payload }) => {
@@ -513,8 +554,11 @@ function App() {
             });
           });
           break;
-        case "generate":
+        case "generate-project-notes":
           handleGenerate();
+          break;
+        case "generate-update":
+          handleGenerateUpdate();
           break;
         case "settings":
           handleSettings();

@@ -11,7 +11,7 @@ export interface IEntry {
   project_id: number;
   content: string;
   date_created: string;
-  date_update: string | null;
+  date_updated: string | null;
 }
 
 export interface ISettings {
@@ -67,6 +67,20 @@ export const getEntries = async (project_id: number) => {
     "SELECT * FROM entries WHERE project_id = ?",
     [project_id],
   );
+  return result;
+};
+
+export const getEntriesOverRange = async (
+  project_id: number,
+  start_date: Dayjs,
+  end_date: Dayjs,
+) => {
+  const db = await getDB();
+  const result = await db.select<IEntry[]>(
+    "select * FROM entries WHERE date_created between ? and ? and project_id = ?;",
+    [start_date.toISOString(), end_date.toISOString(), project_id],
+  );
+  
   return result;
 };
 
@@ -163,10 +177,16 @@ export const updateStatus = async (
   const db = await getDB();
   const result = await db.execute(
     "UPDATE status SET progress = ?, start_date = ?, end_date = ? WHERE project_id = ? AND id = ?",
-    [progress, start_date.utc().format("YYYY-MM-DD"), end_date.utc().format("YYYY-MM-DD"), project_id, id],
+    [
+      progress,
+      start_date.utc().format("YYYY-MM-DD"),
+      end_date.utc().format("YYYY-MM-DD"),
+      project_id,
+      id,
+    ],
   );
   return result;
-}
+};
 
 export const getStatus = async (project_id?: number) => {
   const db = await getDB();
@@ -189,4 +209,4 @@ export const deleteStatus = async (project_id: number, id: number) => {
     [project_id, id],
   );
   return result;
-}
+};

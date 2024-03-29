@@ -43,3 +43,45 @@ export const summarizeEntries = async (entries: IEntry[]) => {
   });
   return result.choices[0].message.content;
 };
+
+export interface IProjectNotes {
+  project: string;
+  notes: string;
+}
+
+export const generatePeriodicUpdate = async (
+  dateRange: string,
+  notes: IProjectNotes[],
+) => {
+  const systemPrompt = await getSetting(
+    SETTINGS.PERIODIC_UPDATE_SYSTEM_PROMPT,
+    DEFAULT_SYSTEM_PROMPTS.PERIODIC_UPDATE_SYSTEM_PROMPT,
+  );
+
+  let content = notes
+    .map((i) => {
+      return `## ${i.project}\n\n${i.notes}`;
+    })
+    .join("\n\n");
+
+  content = `# Notes for ${dateRange}\n\n${content}`;
+
+  let payload: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    {
+      role: "user",
+      content,
+    },
+  ];
+  const o = await openai();
+  const result = await o.chat.completions.create({
+    model: "gpt-4-0125-preview",
+    messages: [
+      {
+        role: "system",
+        content: systemPrompt?.value ?? "",
+      },
+      ...payload,
+    ],
+  });
+  return result.choices[0].message.content;
+};
