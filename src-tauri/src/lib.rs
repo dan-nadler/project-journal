@@ -139,7 +139,105 @@ fn migrations() -> Vec<Migration> {
         kind: MigrationKind::Up,
     };
 
-    return vec![migration, m2, m3, m4, m5, m6];
+    let m7 = Migration {
+        version: 7,
+        description: "dont_cascade_delete",
+        sql: "create table status_dg_tmp
+        (
+            id           integer         not null
+                constraint status_pk
+                    primary key autoincrement,
+            project_id   integer
+                constraint status_projects_id_fk
+                    references projects,
+            progress     integer,
+                         start_date text not null,
+            end_date     text            not null,
+            date_created text            not null
+        );
+        
+        insert into status_dg_tmp(id, project_id, progress, start_date, end_date, date_created)
+        select id, project_id, progress, start_date, end_date, date_created
+        from status;
+        
+        drop table status;
+        
+        alter table status_dg_tmp
+            rename to status;
+        
+        create table entries_dg_tmp
+        (
+            id           integer not null
+                constraint entries_pk
+                    primary key,
+            date_created TEXT    not null,
+            content      text,
+            project_id   integer not null
+                constraint entries_projects_id_fk
+                    references projects,
+            date_updated TEXT
+        );
+        
+        insert into entries_dg_tmp(id, date_created, content, project_id, date_updated)
+        select id, date_created, content, project_id, date_updated
+        from entries;
+        
+        drop table entries;
+        
+        alter table entries_dg_tmp
+            rename to entries;
+        ",
+        kind: MigrationKind::Up,
+    };
+
+    let m8 = Migration {
+        version: 8,
+        description: "add_project_parent",
+        // https://github.com/launchbadge/sqlx/issues/2085#issuecomment-1499859906
+        sql: "-- remove the original TRANSACTION
+        COMMIT TRANSACTION;
+        
+        -- tweak config
+        PRAGMA foreign_keys=OFF;
+        
+        -- start your own TRANSACTION
+        BEGIN TRANSACTION;        
+        
+        create table projects_dg_tmp
+        (
+            id     integer not null
+                constraint projects_pk
+                    primary key autoincrement,
+            name   text    not null,
+            parent integer 
+                constraint projects_projects_id_fk
+                    references projects
+        );
+        
+        insert into projects_dg_tmp(id, name)
+        select id, name
+        from projects;
+        
+        drop table projects;
+        
+        alter table projects_dg_tmp
+            rename to projects;
+            
+        -- check foreign key constraint still upholding.
+        PRAGMA foreign_key_check;
+        
+        -- commit your own TRANSACTION
+        COMMIT TRANSACTION;
+        
+        -- rollback all config you setup before.
+        PRAGMA foreign_keys=ON;
+        
+        -- start a new TRANSACTION to let migrator commit it.
+        BEGIN TRANSACTION;",
+        kind: MigrationKind::Up,
+    };
+
+    return vec![migration, m2, m3, m4, m5, m6, m7, m8];
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

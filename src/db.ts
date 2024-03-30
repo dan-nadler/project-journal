@@ -4,6 +4,7 @@ import dayjs, { Dayjs } from "dayjs";
 export interface IProject {
   id: number;
   name: string;
+  parent: number | null;
 }
 
 export interface IEntry {
@@ -34,7 +35,12 @@ export const getDB = async () => {
 
 export const getProjects = async () => {
   const db = await getDB();
-  const result = await db.select<IProject[]>("SELECT * FROM projects");
+  const q = `
+    select *
+    from projects
+    order by coalesce(parent, id), parent
+  `;
+  const result = await db.select<IProject[]>(q);
   return result;
 };
 
@@ -61,6 +67,15 @@ export const deleteProject = async (id: number) => {
   return result;
 };
 
+export const setProjectParent = async (id: number, parent: number | null) => {
+  const db = await getDB();
+  const result = await db.execute(
+    "UPDATE projects SET parent = ? WHERE id = ?",
+    [parent, id],
+  );
+  return result;
+};
+
 export const getEntries = async (project_id: number) => {
   const db = await getDB();
   const result = await db.select<IEntry[]>(
@@ -80,7 +95,7 @@ export const getEntriesOverRange = async (
     "select * FROM entries WHERE date_created between ? and ? and project_id = ?;",
     [start_date.toISOString(), end_date.toISOString(), project_id],
   );
-  
+
   return result;
 };
 

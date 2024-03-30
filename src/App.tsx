@@ -17,6 +17,7 @@ import {
   updateStatus,
   deleteStatus,
   getEntriesOverRange,
+  setProjectParent,
 } from "./db";
 import { PencilSquareIcon } from "@heroicons/react/24/solid";
 import {
@@ -79,7 +80,7 @@ const useProjects = create<IProjectState>((set) => ({
     set({ activeProject }),
 }));
 
-// const EXAMPLE_TASKS = [
+// const EXAMPLE_TASKS: Task[] = [
 //   {
 //     start: dayjs("2024-01-01").toDate(),
 //     end: dayjs("2024-01-30").toDate(),
@@ -183,9 +184,11 @@ const GanttChart: React.FC = () => {
           end: dayjs(getProjectStatus(p.id)?.end_date).toDate(),
           name: p.name,
           id: p.id.toString(),
-          type: "project",
+          type: p.parent ? "task" : "project",
           progress: getProjectStatus(p.id)?.progress ?? 0,
+          project: p.parent?.toString(),
         }))}
+        // tasks={EXAMPLE_TASKS}
       />
     )
   );
@@ -205,8 +208,7 @@ const Entry: React.FC<{ entry: IEntry; updateEntries: () => void }> = ({
           <span className="flex justify-between pb-1 text-xs font-light">
             <span className="flex gap-1">
               <span className="text-indigo-400">
-                Created:{" "}
-                {dayjs(entry.date_created).format("YYYY-MM-DD h:mm a")}
+                Created: {dayjs(entry.date_created).format("YYYY-MM-DD h:mm a")}
               </span>
               <span>•</span>
               <span className="text-indigo-300">
@@ -491,6 +493,54 @@ const ProjectTitle: React.FC<{
   );
 };
 
+const ProjectMenuItem: React.FC<{
+  project: IProject;
+  activeProject: IProject | undefined;
+  dragParent: number | null;
+  setDragParent: (i: number | null) => void;
+  setActiveProject: (i: IProject) => void;
+  setProjects: (i: IProject[]) => void;
+}> = ({
+  project,
+  dragParent,
+  activeProject,
+  setDragParent,
+  setActiveProject,
+  setProjects,
+}) => {
+  return (
+    <li
+      key={project.id}
+      draggable
+      onDragEnter={() => {
+        console.log(`drag enter ${project.parent || project.id}`);
+        setDragParent(project.parent || project.id);
+      }}
+      onDragLeave={() => {
+        console.log(`drag leave ${project.id}`);
+        setDragParent(null);
+      }}
+      onDragEnd={() => {
+        console.log(
+          `set ${project.id} parent to ${dragParent}. set ${dragParent} parent to null`,
+        );
+        Promise.all([
+          setProjectParent(project.id, dragParent),
+          dragParent && setProjectParent(dragParent, null),
+        ]).then(() => {
+          getProjects().then(setProjects);
+        });
+      }}
+      onClick={() => {
+        setActiveProject(project);
+      }}
+      className={`${activeProject?.id === project.id && "bg-zinc-600"} px-2 hover:bg-zinc-700 ${project.parent ? "pl-8" : ""}`}
+    >
+      {project.name || "Untitled Project"}
+    </li>
+  );
+};
+
 function App() {
   const { projects, setProjects, activeProject, setActiveProject } =
     useProjects((s) => s);
@@ -567,6 +617,8 @@ function App() {
     });
   }, []);
 
+  const [dragParent, setDragParent] = useState<number | null>(null);
+
   return (
     <div className="flex h-[100vh] w-full flex-row justify-start align-middle font-sans text-stone-800">
       <div className="flex h-[100vh] w-[15rem] flex-grow-0 flex-col gap-2 bg-zinc-800 py-2 text-stone-300">
@@ -586,15 +638,17 @@ function App() {
           </li>
           <hr />
           {projects.map((project) => (
-            <li
+            <ProjectMenuItem
               key={project.id}
-              onClick={() => {
-                setActiveProject(project);
+              {...{
+                project,
+                activeProject,
+                dragParent,
+                setDragParent,
+                setActiveProject,
+                setProjects,
               }}
-              className={`${activeProject?.id === project.id && "bg-zinc-600"} px-2 hover:bg-zinc-700`}
-            >
-              {project.name || "Untitled Project"}
-            </li>
+            />
           ))}
         </ul>
       </div>
