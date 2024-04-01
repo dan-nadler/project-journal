@@ -44,6 +44,15 @@ export const getProjects = async () => {
   return result;
 };
 
+export const getProjectById = async (id: number) => {
+  const db = await getDB();
+  const result = await db.select<IProject[]>(
+    "SELECT * FROM projects WHERE id = ?",
+    [id],
+  );
+  return result[0];
+}
+
 export const addProject = async (name: string) => {
   const db = await getDB();
   const result = await db.execute("INSERT INTO projects (name) VALUES (?)", [

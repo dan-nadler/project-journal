@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-capability",
   "description": "Capability for the main window",
-  "windows": ["main", "settings", "generated-notes"],
+  "windows": ["main", "settings", "generated-notes", "project-settings"],
   "permissions": [
     "sql:default",
     "sql:allow-load",
@@ -22,6 +22,7 @@
     "webview:allow-webview-close",
     "dialog:default",
     "dialog:allow-confirm",
-    "dialog:allow-ask"
+    "dialog:allow-ask",
+    "window:allow-destroy"
   ]
 }

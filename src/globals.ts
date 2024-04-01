@@ -1,5 +1,9 @@
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
+export const EVENTS = {
+  PROJECT_PARENT_CHANGED: "project-parent-changed",
+};
+
 export const SETTINGS = {
   OAI_API_KEY: "openai-api-key",
   PROJECT_SUMMARY_SYSTEM_PROMPT: "project-summary-system-prompt",
@@ -45,6 +49,22 @@ export const GENERATED_NOTES_WEBVIEW = (notes: string, project: string) => {
     width: 600,
     height: 720,
     url: `/notes?${data.toString()}`,
+    resizable: true,
+    visible: true,
+    focus: true,
+  });
+};
+
+export const PROJECT_SETTINGS_WEBVIEW = (projectId: number) => {
+  const data = new URLSearchParams();
+
+  data.append("projectId", projectId.toString());
+
+  return new WebviewWindow("project-settings", {
+    title: "Project Settings",
+    width: 600,
+    height: 720,
+    url: `/project-settings?${data.toString()}`,
     resizable: true,
     visible: true,
     focus: true,
