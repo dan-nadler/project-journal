@@ -8,6 +8,8 @@
 - [x] Integrate a Gantt chart overview
 - [x] Add tasks to the Gantt chart
 - [ ] View a Gantt chart for a single project
+- [x] Support Milestones on the Gantt chart
+- [x] Sort the project list alphabetically
 ### Future
 - [ ] Support task and project dependencies in the Gantt chart
 - [ ] Ingest and sync with notes on the file system (eg. Obsidian vault)

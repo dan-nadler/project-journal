@@ -141,6 +141,16 @@ const useProjects = create<IProjectState>((set) => ({
 //     project: "P2",
 //     dependencies: ["2-1"],
 //   },
+//   {
+//     start: dayjs("2024-02-20").toDate(),
+//     end: dayjs("2024-02-20").toDate(),
+//     name: "Milestone",
+//     id: "2-2-M",
+//     type: "milestone",
+//     progress: 0,
+//     project: "P2",
+//     dependencies: [],
+//   }
 // ];
 
 // Main UI components
@@ -188,7 +198,7 @@ const GanttChart: React.FC = () => {
           end: dayjs(getProjectStatus(p.id)?.end_date).toDate(),
           name: p.name,
           id: p.id.toString(),
-          type: p.parent ? "task" : "project",
+          type: p.type,
           progress: getProjectStatus(p.id)?.progress ?? 0,
           project: p.parent?.toString(),
         }))}
@@ -516,7 +526,7 @@ const ProjectMenuItem: React.FC<{
   children?: React.ReactNode;
 }> = ({ project, children }) => {
   const { setActiveProject } = useProjects((s) => s);
-  const [isDragging, ] = useState(false);
+  const [isDragging] = useState(false);
 
   return (
     <li draggable key={project.id}>
@@ -631,6 +641,7 @@ function App() {
           <hr />
           {projects
             .filter((p) => p.parent === null)
+            .sort((a, b) => (a.name > b.name ? 1 : -1))
             .map((project) => (
               <ProjectMenuItem
                 key={project.id}
@@ -640,6 +651,7 @@ function App() {
                 <ul className="z-10 pl-4">
                   {projects
                     .filter((p) => p.parent === project.id)
+                    .sort((a, b) => (a.name > b.name ? 1 : -1))
                     .map((p) => {
                       return (
                         <ProjectMenuItem
@@ -668,7 +680,7 @@ function App() {
           {activeProject ? (
             <Entries projectId={activeProject.id} />
           ) : (
-            <div className={`h-[100vh]`}>
+            <div className={`overflow-y-scroll`}>
               <GanttChart />
             </div>
           )}

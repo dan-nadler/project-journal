@@ -237,7 +237,19 @@ fn migrations() -> Vec<Migration> {
         kind: MigrationKind::Up,
     };
 
-    return vec![migration, m2, m3, m4, m5, m6, m7, m8];
+    let m9 = Migration {
+        version: 9,
+        description: "add_project_type_column",
+        sql: "alter table projects
+        add type TEXT;
+        
+        update projects set type = 'project' where parent is null;
+        
+        update projects set type = 'task' where parent is not null;",
+        kind: MigrationKind::Up,
+    };
+
+    return vec![migration, m2, m3, m4, m5, m6, m7, m8, m9];
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

@@ -1,10 +1,13 @@
 import Database from "@tauri-apps/plugin-sql";
 import dayjs, { Dayjs } from "dayjs";
 
+export type PROJECT_TYPE = "project" | "task" | "milestone"
+
 export interface IProject {
   id: number;
   name: string;
   parent: number | null;
+  type: PROJECT_TYPE
 }
 
 export interface IEntry {
@@ -27,6 +30,7 @@ export interface IStatus {
   start_date: string;
   end_date: string;
   date_created: string;
+  type: string;
 }
 
 export const getDB = async () => {
@@ -84,6 +88,16 @@ export const setProjectParent = async (id: number, parent: number | null) => {
   );
   return result;
 };
+
+export const setProjectType = async (id: number, type: PROJECT_TYPE) => {
+  const db = await getDB();
+  const result = await db.execute(
+    "UPDATE projects SET type = ? WHERE id = ?",
+    [type, id],
+  );
+  return result;
+};
+
 
 export const getEntries = async (project_id: number) => {
   const db = await getDB();
