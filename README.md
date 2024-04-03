@@ -10,6 +10,10 @@
 - [ ] View a Gantt chart for a single project
 - [x] Support Milestones on the Gantt chart
 - [x] Sort the project list alphabetically
+- [ ] Edit the Gantt chart directly
+- [ ] Suport tauri update plugin via projectjournal.thetortoise.io
+### Known Issues
+- [ ] The gantt chart may not populate on initial load, but does populate after an interaction.
 ### Future
 - [ ] Support task and project dependencies in the Gantt chart
 - [ ] Ingest and sync with notes on the file system (eg. Obsidian vault)

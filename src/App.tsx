@@ -84,6 +84,29 @@ const useProjects = create<IProjectState>((set) => ({
     set({ activeProject }),
 }));
 
+// Zustand store for Gantt settings
+interface IGanttSettings {
+  chartFrequency: ViewMode;
+  setChartFrequency: (v: ViewMode) => void;
+  showTasks: boolean;
+  setShowTasks: (t: boolean) => void;
+  showMilestones: boolean;
+  setShowMilestones: (t: boolean) => void;
+  showEmpty: boolean;
+  setShowEmpty: (e: boolean) => void;
+}
+
+const useGanttSettings = create<IGanttSettings>((set) => ({
+  chartFrequency: ViewMode.Week,
+  setChartFrequency: (chartFrequency: ViewMode) => set({ chartFrequency }),
+  showTasks: true,
+  setShowTasks: (showTasks: boolean) => set({ showTasks }),
+  showMilestones: true,
+  setShowMilestones: (showMilestones: boolean) => set({ showMilestones }),
+  showEmpty: false,
+  setShowEmpty: (showEmpty: boolean) => set({ showEmpty }),
+}));
+
 // const EXAMPLE_TASKS: Task[] = [
 //   {
 //     start: dayjs("2024-01-01").toDate(),
@@ -155,8 +178,35 @@ const useProjects = create<IProjectState>((set) => ({
 
 // Main UI components
 const GanttChart: React.FC = () => {
-  const { projects } = useProjects((s) => s);
+  const { projects, setActiveProject } = useProjects((s) => s);
   const { status } = useStatus((s) => s);
+  const ganttSettings = useGanttSettings((s) => s);
+  const [filteredProjects, setFilteredProjects] = useState<IProject[]>([]);
+
+  useEffect(() => {
+    setFilteredProjects(
+      projects.filter((p) => {
+        if (!ganttSettings.showTasks) {
+          if (p.type === "task") return false;
+        }
+
+        if (!ganttSettings.showMilestones) {
+          if (p.type === "milestone") return false;
+        }
+
+        if (!ganttSettings.showEmpty) {
+          if (getProjectStatus(p.id) === null) return false;
+        }
+
+        return true;
+      }),
+    );
+  }, [
+    projects,
+    ganttSettings.showEmpty,
+    ganttSettings.showTasks,
+    ganttSettings.showMilestones,
+  ]);
 
   const getProjectStatus = (id: number): IStatus | null => {
     if (status === undefined) {
@@ -171,40 +221,83 @@ const GanttChart: React.FC = () => {
   };
 
   return (
-    projects.length > 0 && (
-      <Gantt
-        viewMode={ViewMode.Week}
-        todayColor="rgba(99, 102, 241, 0.1)"
-        TaskListHeader={({ headerHeight }) => (
-          <div style={{ height: headerHeight }} className="bg-indi border p-2">
-            <div>Name</div>
-          </div>
-        )}
-        TaskListTable={({ tasks, rowHeight }) => (
-          <div className="border border-t-0">
-            {tasks.map((task) => (
-              <div
-                key={task.id}
-                style={{ height: rowHeight }}
-                className={`flex flex-col justify-center border p-2 pr-4 ${task.type == "project" ? "" : "pl-6 font-light"}`}
-              >
-                <div>{task.name}</div>
-              </div>
-            ))}
-          </div>
-        )}
-        tasks={projects.map((p) => ({
-          start: dayjs(getProjectStatus(p.id)?.start_date).toDate(),
-          end: dayjs(getProjectStatus(p.id)?.end_date).toDate(),
-          name: p.name,
-          id: p.id.toString(),
-          type: p.type,
-          progress: getProjectStatus(p.id)?.progress ?? 0,
-          project: p.parent?.toString(),
-        }))}
-        // tasks={EXAMPLE_TASKS}
-      />
-    )
+    <>
+      <div className="flex flex-row gap-2 px-1 pb-2">
+        <div>
+          <select
+            value={ganttSettings.chartFrequency}
+            onChange={(e) =>
+              ganttSettings.setChartFrequency(e.target.value as ViewMode)
+            }
+          >
+            <option value={ViewMode.Day}>Daily</option>
+            <option value={ViewMode.Week}>Weekly</option>
+            <option value={ViewMode.Month}>Monthly</option>
+            <option value={ViewMode.Year}>Yearly</option>
+          </select>
+        </div>
+        <button
+          className={`${ganttSettings.showTasks ? "border-indigo-500 bg-indigo-200" : "border-indigo-500 bg-indigo-50"} rounded-md border px-1 text-xs`}
+          onClick={(e) =>
+            ganttSettings.setShowTasks(!ganttSettings.showTasks)
+          }
+        >
+          Tasks
+        </button>
+        <button
+          className={`${ganttSettings.showMilestones ? "border-indigo-500 bg-indigo-200" : "border-indigo-500 bg-indigo-50"} rounded-md border px-1 text-xs`}
+          onClick={(e) =>
+            ganttSettings.setShowMilestones(!ganttSettings.showMilestones)
+          }
+        >
+          Milestones
+        </button>
+        <button
+          className={`${ganttSettings.showEmpty ? "border-indigo-500 bg-indigo-200" : "border-indigo-500 bg-indigo-50"} rounded-md border px-1 text-xs`}
+          onClick={(e) => ganttSettings.setShowEmpty(!ganttSettings.showEmpty)}
+        >
+          Empty
+        </button>
+      </div>
+      {filteredProjects.length > 0 && (
+        <Gantt
+          onDoubleClick={(t) =>
+            setActiveProject(projects.find((p) => p.id === parseInt(t.id)))
+          }
+          viewMode={ganttSettings.chartFrequency}
+          todayColor="rgba(99, 102, 241, 0.1)"
+          TaskListHeader={({ headerHeight }) => (
+            <div
+              style={{ height: headerHeight }}
+              className="border bg-zinc-200 p-2"
+            />
+          )}
+          TaskListTable={({ tasks, rowHeight }) => (
+            <div className="border border-t-0">
+              {tasks.map((task) => (
+                <div
+                  key={task.id}
+                  style={{ height: rowHeight }}
+                  className={`flex flex-col justify-center border p-2 pr-4 ${task.type == "project" ? "" : "pl-6 font-light"}`}
+                >
+                  <div>{task.name}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          tasks={filteredProjects.map((p) => ({
+            start: dayjs(getProjectStatus(p.id)?.start_date).toDate(),
+            end: dayjs(getProjectStatus(p.id)?.end_date).toDate(),
+            name: p.name,
+            id: p.id.toString(),
+            type: p.type,
+            progress: getProjectStatus(p.id)?.progress ?? 0,
+            project: p.parent?.toString(),
+          }))}
+          // tasks={EXAMPLE_TASKS}
+        />
+      )}
+    </>
   );
 };
 
