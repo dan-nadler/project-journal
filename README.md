@@ -12,6 +12,7 @@
 - [x] Sort the project list alphabetically
 - [ ] Edit the Gantt chart directly
 - [ ] Suport tauri update plugin via projectjournal.thetortoise.io
+- [ ] Improve the LLM functionality for notes generation
 ### Known Issues
 - [ ] The gantt chart may not populate on initial load, but does populate after an interaction.
 ### Future

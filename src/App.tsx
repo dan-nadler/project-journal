@@ -238,7 +238,7 @@ const GanttChart: React.FC = () => {
         </div>
         <button
           className={`${ganttSettings.showTasks ? "border-indigo-500 bg-indigo-200" : "border-indigo-500 bg-indigo-50"} rounded-md border px-1 text-xs`}
-          onClick={(e) =>
+          onClick={() =>
             ganttSettings.setShowTasks(!ganttSettings.showTasks)
           }
         >
@@ -246,15 +246,15 @@ const GanttChart: React.FC = () => {
         </button>
         <button
           className={`${ganttSettings.showMilestones ? "border-indigo-500 bg-indigo-200" : "border-indigo-500 bg-indigo-50"} rounded-md border px-1 text-xs`}
-          onClick={(e) =>
+          onClick={() =>
             ganttSettings.setShowMilestones(!ganttSettings.showMilestones)
           }
         >
           Milestones
         </button>
         <button
-          className={`${ganttSettings.showEmpty ? "border-indigo-500 bg-indigo-200" : "border-indigo-500 bg-indigo-50"} rounded-md border px-1 text-xs`}
-          onClick={(e) => ganttSettings.setShowEmpty(!ganttSettings.showEmpty)}
+          className={`${ganttSettings.showEmpty ? "bg-emerald-700 border-indigo-500 bg-indigo-200" : "border-indigo-500 bg-indigo-50"} rounded-md border px-1 text-xs`}
+          onClick={() => ganttSettings.setShowEmpty(!ganttSettings.showEmpty)}
         >
           Empty
         </button>
@@ -264,6 +264,12 @@ const GanttChart: React.FC = () => {
           onDoubleClick={(t) =>
             setActiveProject(projects.find((p) => p.id === parseInt(t.id)))
           }
+          barBackgroundColor="#a5b4fc"
+          barProgressColor="#6366f1"
+          barBackgroundSelectedColor="#4f46e5"
+          projectBackgroundColor="#059669"
+          projectProgressColor="#10b981"
+          projectBackgroundSelectedColor="#047857"
           viewMode={ganttSettings.chartFrequency}
           todayColor="rgba(99, 102, 241, 0.1)"
           TaskListHeader={({ headerHeight }) => (
